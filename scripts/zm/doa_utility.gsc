@@ -20,10 +20,11 @@ add_zone( name, display_name, start_points, barriers, bounds, start_zone )
 store_barrier_info( model, origin, angles )
 {
 	//ent = spawn( "script_model", origin );
-	ent.origin = origin;
-	ent.angles = angles;
-	ent.model = model;
-	return ent;
+	info = spawnStruct();
+	info.origin = origin;
+	info.angles = angles;
+	info.model = model;
+	return info;
 }
 
 spawn_barrier( barrier_info )

@@ -5,13 +5,41 @@
 
 main()
 {
+	replaceFunc( maps\mp\zm_transit_classic::init_bus, ::init_bus_override );
+	replaceFunc( maps\mp\zm_transit_classic::banking_and_weapon_locker_main, ::banking_and_weapon_locker_main_override );
+	replaceFunc( maps\mp\zm_transit_sq::init, ::sq_init_override );
+	replaceFunc( maps\mp\zm_transit_sq::start_transit_sidequest, ::start_transit_sidequest_override );
+	replaceFunc( maps\mp\zm_transit_power::initializepower, ::initializepower_override );
 	level thread delete_lava_triggers();
+	level thread delete_buildable_parts();
 	setup_transit_zones();
+	level.location_zones = [];
+	level.location_zones[ level.location_zones.size ] = "zone_gar";
+	level.location_zones[ level.location_zones.size ] = "zone_diner_roof";
+	level.location_zones[ level.location_zones.size ] = "zone_bar";
+	level.location_zones[ level.location_zones.size ] = "zone_ban";
+	level.location_zones[ level.location_zones.size ] = "zone_town_barber";
 }
 
 init()
 {
 	setDvar( "scr_screecher_ignore_player", 1 );
+	level thread maps\mp\zombies\_zm_banking::delete_bank_teller();
+	level waittill( "connected", player );
+	level.closest_player_override = undefined;
+	flag_set( "OnFarm_enter" );
+}
+
+delete_buildable_parts()
+{
+	ents = getEntArray();
+	foreach ( ent in ents )
+	{
+		if ( isDefined( ent ) && isDefined( ent.script_gameobjectname ) && ent.script_gameobjectname == "zclassic" )
+		{
+			ent delete();
+		}
+	}
 }
 
 delete_lava_triggers()
@@ -33,7 +61,7 @@ setup_transit_zones()
 	level.doa_start_zone_name = "transit_town_middle";
 	level.doa_current_zone_name = "transit_town_middle";
 	level.doa_next_zone = undefined;
-
+	/*
 	start_points = [];
 	start_points[ start_points.size ] = (-7082.91, 5228.06, -55.875);
 	start_points[ start_points.size ] = (-7086.71, 5378.83, -55.875);
@@ -46,7 +74,7 @@ setup_transit_zones()
 	bounds = [];
 	barriers = [];
 	add_zone( "transit_first_room", "Bus Depot First Room", start_points, barriers, bounds );
-
+	*/
 	start_points = [];
 	start_points[ start_points.size ] = (-6115.46, 4626.48, -58.7688);
 	start_points[ start_points.size ] = (-6227.5, 4616.49, -63.875);
@@ -59,11 +87,11 @@ setup_transit_zones()
 	bounds = [];
 	barriers = [];
 	barrier_start_point = (-5859.44, 4786.1, -60.5761);
-	next_point = get_next_point( barrier_start_point, (0, -133.273 + 90, 0), 128 );
-	barriers[ barriers.size ] = store_barrier_info( "collision_player_256x256x10", next_point, (0, -133.273 + 90, 0) );
+	next_point = get_next_point( barrier_start_point, (0, -133.273, 0), 128 );
+	barriers[ barriers.size ] = store_barrier_info( "collision_player_wall_256x256x10", next_point, (0, -133.273, 0) );
 	barrier_start_point = (-7653.66, 5000.36, -55.875);
-	next_point = get_next_point( barrier_start_point, (0, -94.3651 + 90, 0), 256 );
-	barriers[ barriers.size ] = store_barrier_info( "collision_player_512x512x10", next_point, (0, -94.3651 + 90, 0) );
+	next_point = get_next_point( barrier_start_point, (0, -94.3651, 0), 256 );
+	barriers[ barriers.size ] = store_barrier_info( "collision_player_wall_512x512x10", next_point, (0, -94.3651, 0) );
 	add_zone( "transit_bus_depot_outside", "Bus Depot Outside", start_points, barriers, bounds );
 
 	start_points = [];
@@ -78,13 +106,14 @@ setup_transit_zones()
 	bounds = [];
 	barriers = [];
 	barrier_start_point = (-10946.8, -3270.99, 193.918);
-	next_point = get_next_point( barrier_start_point, (0, 3.19355 + 90, 0), 128 );
-	barriers[ barriers.size ] = store_barrier_info( "collision_player_256x256x10", next_point, (0, 3.19355 + 90, 0) );
+	next_point = get_next_point( barrier_start_point, (0, 3.19355, 0), 128 );
+	barriers[ barriers.size ] = store_barrier_info( "collision_player_wall_256x256x10", next_point, (0, 3.19355, 0) );
 	barrier_start_point = (-11464.7, -570.791, 192.125);
-	next_point = get_next_point( barrier_start_point, (0, -0.871396 + 90, 0), 256 );
-	barriers[ barriers.size ] = store_barrier_info( "collision_player_512x512x10", next_point, (0, -0.871396 + 90, 0) );
+	next_point = get_next_point( barrier_start_point, (0, -0.871396, 0), 256 );
+	barriers[ barriers.size ] = store_barrier_info( "collision_player_wall_512x512x10", next_point, (0, -0.871396, 0) );
 	add_zone( "transit_tunnel", "Tunnel", start_points, barriers, bounds );
 
+	/*
 	start_points = [];
 	start_points[ start_points.size ] = (-4250.54, -7594.09, -62.5864);
 	start_points[ start_points.size ] = (-4246.48, -7712.42, -62.003);
@@ -98,7 +127,6 @@ setup_transit_zones()
 	barriers = [];
 	add_zone( "transit_diner_garage", "Diner Garage", start_points, barriers, bounds );
 
-	/*
 	start_points = [];
 	start_points[ start_points.size ] = (-5583.14, -7820.18, 0.125);
 	start_points[ start_points.size ] = (-5577.67, -7736.41, 0.125);
@@ -125,16 +153,17 @@ setup_transit_zones()
 	bounds = [];
 	barriers = [];
 	barrier_start_point = (-3929.98, -6395.96, -38.8073);
-	next_point = get_next_point( barrier_start_point, (0, -92.6458 + 90, 0), 128 );
-	barriers[ barriers.size ] = store_barrier_info( "collision_player_256x256x10", next_point, (0, -92.6458 + 90, 0) );
+	next_point = get_next_point( barrier_start_point, (0, -92.6458, 0), 128 );
+	barriers[ barriers.size ] = store_barrier_info( "collision_player_wall_256x256x10", next_point, (0, -92.6458, 0) );
 	barrier_start_point = (-3954.37, -6843.64, -56.0435);
-	next_point = get_next_point( barrier_start_point, (0, -92.9753 + 90, 0), 256 );
-	barriers[ barriers.size ] = store_barrier_info( "collision_player_512x512x10", next_point, (0, -92.9753 + 90, 0) );
+	next_point = get_next_point( barrier_start_point, (0, -92.9753, 0), 256 );
+	barriers[ barriers.size ] = store_barrier_info( "collision_player_wall_512x512x10", next_point, (0, -92.9753, 0) );
 	barrier_start_point = (-6386.95, -6799.38, -55.7099);
-	next_point = get_next_point( barrier_start_point, (0, -76.9353 + 90, 0), 128 );
-	barriers[ barriers.size ] = store_barrier_info( "collision_player_256x256x10", next_point, (0, -76.9353 + 90, 0) );
+	next_point = get_next_point( barrier_start_point, (0, -76.9353, 0), 128 );
+	barriers[ barriers.size ] = store_barrier_info( "collision_player_wall_256x256x10", next_point, (0, -76.9353, 0) );
 	add_zone( "transit_diner_outside", "Diner Outside", start_points, barriers, bounds );
 
+	/*
 	start_points = [];
 	start_points[ start_points.size ] = (-6350.25, -7678.92, 225.982);
 	start_points[ start_points.size ] = (-6267.44, -7678.63, 225.563);
@@ -148,7 +177,6 @@ setup_transit_zones()
 	barriers = [];
 	add_zone( "transit_diner_roof", "Diner Roof", start_points, barriers, bounds );
 
-	/*
 	start_points = [];
 	start_points[ start_points.size ] = (6655.25, -5898.87, -64.6025);
 	start_points[ start_points.size ] = (6511, -5840.11, -64.8609);
@@ -185,13 +213,13 @@ setup_transit_zones()
 	bounds = [];
 	barriers = [];
 	barrier_start_point = (10343.6, -461.571, -218.865);
-	next_point = get_next_point( barrier_start_point, (0, 163.495 + 90, 0), 128 );
-	barriers[ barriers.size ] = store_barrier_info( "collision_player_256x256x10", next_point, (0, 163.495 + 90, 0) );
+	next_point = get_next_point( barrier_start_point, (0, 163.495, 0), 128 );
+	barriers[ barriers.size ] = store_barrier_info( "collision_player_wall_256x256x10", next_point, (0, 163.495, 0) );
 	barrier_start_point = (10176.9, -1749.34, -217.767);
-	next_point = get_next_point( barrier_start_point, (0, 119.341 + 90, 0), 256 );
-	barriers[ barriers.size ] = store_barrier_info( "collision_player_512x512x10", next_point, (0, 119.341 + 90, 0) );
-	next_point = get_next_point( next_point, (0, 119.341 + 90, 0), 128 );
-	barriers[ barriers.size ] = store_barrier_info( "collision_player_256x256x10", next_point, (0, 119.341 + 90, 0) );
+	next_point = get_next_point( barrier_start_point, (0, 119.341, 0), 256 );
+	barriers[ barriers.size ] = store_barrier_info( "collision_player_wall_512x512x10", next_point, (0, 119.341, 0) );
+	next_point = get_next_point( next_point, (0, 119.341, 0), 128 );
+	barriers[ barriers.size ] = store_barrier_info( "collision_player_wall_256x256x10", next_point, (0, 119.341, 0) );
 	add_zone( "transit_cornfield_middle", "Cornfield Middle", start_points, barriers, bounds );
 
 	start_points = [];
@@ -206,8 +234,8 @@ setup_transit_zones()
 	bounds = [];
 	barriers = [];
 	barrier_start_point = (12949.1, -622.748, -194.141);
-	next_point = get_next_point( barrier_start_point, (0, -93.9531 + 90, 0), 128 );
-	barriers[ barriers.size ] = store_barrier_info( "collision_player_256x256x10", next_point, (0, -93.9531 + 90, 0) );
+	next_point = get_next_point( barrier_start_point, (0, -93.9531, 0), 128 );
+	barriers[ barriers.size ] = store_barrier_info( "collision_player_wall_256x256x10", next_point, (0, -93.9531, 0) );
 	add_zone( "transit_cornfield_nacht", "Cornfield Nacht", start_points, barriers, bounds );
 
 	start_points = [];
@@ -222,14 +250,14 @@ setup_transit_zones()
 	bounds = [];
 	barriers = [];
 	barrier_start_point = (10033.3, 7225.31, -569.225);
-	next_point = get_next_point( barrier_start_point, (0, 9.41726 + 90, 0), 256 );
-	barriers[ barriers.size ] = store_barrier_info( "collision_player_512x512x10", next_point, (0, 9.41726 + 90, 0) );
+	next_point = get_next_point( barrier_start_point, (0, 9.41726, 0), 256 );
+	barriers[ barriers.size ] = store_barrier_info( "collision_player_wall_512x512x10", next_point, (0, 9.41726, 0) );
 	barrier_start_point = (10391.2, 8353.94, -576.267);
-	next_point = get_next_point( barrier_start_point, (0, -171.583 + 90, 0), 256 );
-	barriers[ barriers.size ] = store_barrier_info( "collision_player_512x512x10", next_point, (0, -171.583 + 90, 0) );
+	next_point = get_next_point( barrier_start_point, (0, -171.583, 0), 256 );
+	barriers[ barriers.size ] = store_barrier_info( "collision_player_wall_512x512x10", next_point, (0, -171.583, 0) );
 	barrier_start_point = (9908.17, 8265.4, -555.56);
-	next_point = get_next_point( barrier_start_point, (0, 11.2959 + 90, 0), 128 );
-	barriers[ barriers.size ] = store_barrier_info( "collision_player_256x256x10", next_point, (0, 11.2959 + 90, 0) );
+	next_point = get_next_point( barrier_start_point, (0, 11.2959, 0), 128 );
+	barriers[ barriers.size ] = store_barrier_info( "collision_player_wall_256x256x10", next_point, (0, 11.2959, 0) );
 	add_zone( "transit_power", "Power", start_points, barriers, bounds );
 
 	/*
@@ -257,16 +285,17 @@ setup_transit_zones()
 	bounds = [];
 	barriers = [];
 	barrier_start_point = (1239.19, 954.614, -58.4676);
-	next_point = get_next_point( barrier_start_point, (0, -2.81604 + 90, 0), 256 );
-	barriers[ barriers.size ] = store_barrier_info( "collision_player_512x512x10", next_point, (0, -2.81604 + 90, 0) );
-	barrier_start_point = get_next_point( next_point, (0, -2.81604 + 90, 0), 256 );
-	next_point = get_next_point( barrier_start_point, (0, -2.81604 + 90, 0), 256 );
-	barriers[ barriers.size ] = store_barrier_info( "collision_player_512x512x10", next_point, (0, -2.81604 + 90, 0) );	
+	next_point = get_next_point( barrier_start_point, (0, -2.81604, 0), 256 );
+	barriers[ barriers.size ] = store_barrier_info( "collision_player_wall_512x512x10", next_point, (0, -2.81604, 0) );
+	barrier_start_point = get_next_point( next_point, (0, -2.81604, 0), 256 );
+	next_point = get_next_point( barrier_start_point, (0, -2.81604, 0), 256 );
+	barriers[ barriers.size ] = store_barrier_info( "collision_player_wall_512x512x10", next_point, (0, -2.81604, 0) );	
 	barrier_start_point = (393.748, -589.056, -61.9006);
-	next_point = get_next_point( barrier_start_point, (0, 83.108 + 90, 0), 128 );
-	barriers[ barriers.size ] = store_barrier_info( "collision_player_256x256x10", next_point, (0, 83.108 + 90, 0) );
+	next_point = get_next_point( barrier_start_point, (0, 83.108, 0), 128 );
+	barriers[ barriers.size ] = store_barrier_info( "collision_player_wall_256x256x10", next_point, (0, 83.108, 0) );
 	add_zone( "transit_town_middle", "Town Middle", start_points, barriers, bounds, true );
 
+	/*
 	start_points = [];
 	start_points[ start_points.size ] = (1872.35, 603.116, -55.875);
 	start_points[ start_points.size ] = (1973.45, 610.331, -55.875);
@@ -279,8 +308,8 @@ setup_transit_zones()
 	bounds = [];
 	barriers = [];
 	barrier_start_point = (1832.74, -110.874, 88.125);
-	next_point = get_next_point( barrier_start_point, (0, 128.608 + 90, 0), 128 );
-	barriers[ barriers.size ] = store_barrier_info( "collision_player_256x256x10", next_point, (0, 128.608 + 90, 0) );
+	next_point = get_next_point( barrier_start_point, (0, 128.608, 0), 128 );
+	barriers[ barriers.size ] = store_barrier_info( "collision_player_wall_256x256x10", next_point, (0, 128.608, 0) );
 	add_zone( "transit_town_bar", "Town Bar", start_points, barriers, bounds );
 
 	start_points = [];
@@ -304,14 +333,39 @@ setup_transit_zones()
 	start_points[ start_points.size ] = (876.378, -1100.28, 120.125);
 	start_points[ start_points.size ] = (982.608, -1090.21, 120.125);
 	barrier_start_point = (1061.93, -1211.64, 124.125);
-	next_point = get_next_point( barrier_start_point, (0, -89.9211 + 90, 0), 128 );
-	barriers[ barriers.size ] = store_barrier_info( "collision_player_256x256x10", next_point, (0, -89.9211 + 90, 0) );	
+	next_point = get_next_point( barrier_start_point, (0, -89.9211, 0), 128 );
+	barriers[ barriers.size ] = store_barrier_info( "collision_player_wall_256x256x10", next_point, (0, -89.9211, 0) );	
 	barrier_start_point = (1138.56, -830.859, 134.883);
-	next_point = get_next_point( barrier_start_point, (0, 150.388 + 90, 0), 128 );
-	barriers[ barriers.size ] = store_barrier_info( "collision_player_256x256x10", next_point, (0, 150.388 + 90, 0) );	
+	next_point = get_next_point( barrier_start_point, (0, 150.388, 0), 128 );
+	barriers[ barriers.size ] = store_barrier_info( "collision_player_wall_256x256x10", next_point, (0, 150.388, 0) );	
 	add_zone( "transit_town_mp5", "Town Mp5", start_points, barriers, bounds );
+	*/
 }
 
 on_player_connect()
 {
+}
+
+init_bus_override()
+{
+}
+
+banking_and_weapon_locker_main_override()
+{
+}
+
+sq_init_override()
+{
+}
+
+start_transit_sidequest_override()
+{
+}
+
+initializepower_override()
+{
+	registerclientfield( "toplayer", "power_rumble", 1, 1, "int" );
+	if ( !isdefined( level.vsmgr_prio_visionset_zm_transit_power_high_low ) )
+		level.vsmgr_prio_visionset_zm_transit_power_high_low = 20;
+	maps\mp\_visionset_mgr::vsmgr_register_info( "visionset", "zm_power_high_low", 1, level.vsmgr_prio_visionset_zm_transit_power_high_low, 7, 1, ::vsmgr_lerp_power_up_down, 0 );
 }

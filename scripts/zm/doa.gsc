@@ -1,6 +1,7 @@
 #include maps\mp\_utility;
 #include common_scripts\utility;
 #include maps\mp\zombies\_zm_utility;
+#include scripts\zm\doa_utility;
 
 main()
 {
@@ -12,6 +13,10 @@ main()
 	replaceFunc( maps\mp\zombies\_zm_perks::perk_set_max_health_if_jugg, ::perk_set_max_health_if_jugg_override );
 	replaceFunc( maps\mp\zombies\_zm::ai_calculate_health, ::ai_calculate_health_override );
 	level.no_board_repair = true;
+	precacheModel( "collision_player_256x256x10" );
+	precacheModel( "collision_player_512x512x10" );
+	precacheModel( "collision_player_wall_256x256x10" );
+	precacheModel( "collision_player_wall_512x512x10" );
 }
 
 init()
@@ -22,6 +27,8 @@ init()
 	level.round_end_custom_logic = ::doa_end_of_round;
 	level._game_module_game_end_check = ::doa_end_game_check;
 	level waittill( "connected", player );
+	level.zombie_vars[ "zombie_spawn_delay" ] = 0.4;
+	level.player_out_of_playable_area_monitor = false;
 	level thread drop_all_barriers();
 	level thread delete_door_triggers();
 	level thread disable_wallbuy_triggers();
@@ -200,10 +207,14 @@ disable_wallbuy_triggers()
 	{
 		return;
 	}
-	weapon_spawns = GetEntArray( "weapon_upgrade", "targetname" );
-	for ( i = 0; i < weapon_spawns.size; i++ )
+	spawnable_weapon_spawns = getstructarray( "weapon_upgrade", "targetname" );
+	spawnable_weapon_spawns = arraycombine( spawnable_weapon_spawns, getstructarray( "bowie_upgrade", "targetname" ), 1, 0 );
+	spawnable_weapon_spawns = arraycombine( spawnable_weapon_spawns, getstructarray( "sickle_upgrade", "targetname" ), 1, 0 );
+	spawnable_weapon_spawns = arraycombine( spawnable_weapon_spawns, getstructarray( "tazer_upgrade", "targetname" ), 1, 0 );
+	spawnable_weapon_spawns = arraycombine( spawnable_weapon_spawns, getstructarray( "buildable_wallbuy", "targetname" ), 1, 0 );
+	for ( i = 0; i < spawnable_weapon_spawns.size; i++ )
 	{
-		weapon_spawns[ i ] trigger_off();
+		spawnable_weapon_spawns[ i ] trigger_off();
 	}
 }
 
@@ -251,11 +262,19 @@ doa_end_of_round()
 {
 	foreach ( player in level.players )
 	{
-		if ( player player_is_in_laststand() )
+		if ( player maps\mp\zombies\_zm_laststand::player_is_in_laststand() )
 		{
 			player maps\mp\zombies\_zm_laststand::auto_revive( player );
 		}
+	}		
+	if ( ( level.round_number % 4 ) == 1 )
+	{
+		return;
 	}
+	foreach ( player in level.players )
+	{
+		player freezeControls( true );
+	}	
 	delay = 5;
 	level thread display_starting_next_round_hud( delay );
 	wait delay;
@@ -281,7 +300,7 @@ display_starting_next_round_hud( delay )
 
 	change_delay = int( delay );
 	
-	while ( 1 )
+	while ( change_delay > 0 )
 	{
 		zone_change_hud SetValue( change_delay );
 		wait 1;
@@ -292,7 +311,8 @@ display_starting_next_round_hud( delay )
 
 send_players_to_next_zone()
 {
-	delete_barriers( level.doa_current_zone_name );
+	delete_barriers();
+	level.doa_possible_zones = [];
 	if ( !isDefined( level.doa_possible_zones ) || level.doa_possible_zones.size <= 0 )
 	{
 		level.doa_possible_zones = level.doa_zones;
@@ -322,6 +342,7 @@ send_players_to_next_zone()
 		if ( player.sessionstate == "playing" )
 		{
 			player setOrigin( start_points[ index ] );
+			player freezeControls( false );
 		}
 	}
 	level thread spawn_barriers( zone );
@@ -367,18 +388,7 @@ manage_zones_override( initial_zone )
 	if ( isdefined( level.zone_manager_init_func ) )
 		[[ level.zone_manager_init_func ]]();
 
-	location = getDvar( "ui_zm_mapstartlocation" );
-	if ( isDefined( level.location_zones ) && isDefined( level.location_zones[ location ] ) )
-	{
-		location_zones = level.location_zones[ location ];
-		for ( i = 0; i < location_zones.size; i++ )
-		{
-			zone_init( location_zones[ i ] );
-			enable_zone( location_zones[ i ] );
-		}
-		initial_zone = level.location_zones[ location ];
-	}
-	else if ( isarray( initial_zone ) )
+	if ( isarray( initial_zone ) )
 	{
 		for ( i = 0; i < initial_zone.size; i++ )
 		{
@@ -388,11 +398,18 @@ manage_zones_override( initial_zone )
 	}
 	else
 	{
-/#
-		println( "ZM >> zone_init (_zm_zonemgr.gsc) = " + initial_zone );
-#/
 		zone_init( initial_zone );
 		enable_zone( initial_zone );
+	}
+	if ( isDefined( level.location_zones ) )
+	{
+		location_zones = level.location_zones;
+		for ( i = 0; i < location_zones.size; i++ )
+		{
+			zone_init( location_zones[ i ] );
+			enable_zone( location_zones[ i ] );
+		}
+		initial_zone = level.location_zones;
 	}
 
 	if ( isDefined( level.location_zones_func ) )
@@ -411,9 +428,7 @@ manage_zones_override( initial_zone )
 	oldzone = undefined;
 	flag_set( "zones_initialized" );
 	flag_wait( "begin_spawning" );
-/#
-	level thread _debug_zones();
-#/
+
 	while ( getdvarint( "noclip" ) == 0 || getdvarint( "notarget" ) != 0 )
 	{
 		for ( z = 0; z < zkeys.size; z++ )
@@ -501,9 +516,7 @@ manage_zones_override( initial_zone )
 		}
 
 		[[ level.create_spawner_list_func ]]( zkeys );
-/#
-		debug_show_spawn_locations();
-#/
+
 		level.active_zone_names = maps\mp\zombies\_zm_zonemgr::get_active_zone_names();
 		wait 1;
 	}
@@ -524,6 +537,10 @@ struct_class_init_override()
 	foreach ( s_struct in level.struct )
 	{
 		if ( isDefined( s_struct.targetname ) && s_struct.targetname == "zm_perk_machine" )
+		{
+			continue;
+		}
+		else if ( isDefined( s_struct.script_noteworthy ) && s_struct.script_noteworthy == "inert_location" )
 		{
 			continue;
 		}
